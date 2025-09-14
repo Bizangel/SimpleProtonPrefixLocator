@@ -39,6 +39,14 @@ function App() {
     return;
 
   console.log(allShortcuts)
+  if (errorMsg)
+    return (
+      <div className="error-container">
+        <h1>Error reading local steam info</h1>
+        {errorMsg}
+      </div>
+    )
+
   return (
     <div className="column-container">
       {Object.keys(allShortcuts).map(accountIdKey =>
@@ -47,10 +55,13 @@ function App() {
             Account {accountIdKey}
           </div>
 
-          {Object.values(allShortcuts[accountIdKey]).map(entry =>
+          {[...Object.values(allShortcuts[accountIdKey])].sort((a,b) => a.LastPlayTime - b.LastPlayTime).map(entry =>
             <div className="shortcut-entry" key={entry.appid}>
-              <img src={entry.icon} />
-              {entry.AppName}
+              <img src={entry.icon} className="shortcut-img" />
+              <div className="shortcut-entry-title">
+                  <b>App ID: { entry.appid} </b>
+                 <h1>{ entry.AppName}</h1>
+              </div>
             </div>
           )}
         </Fragment>
