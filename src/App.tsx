@@ -4,12 +4,12 @@ import "./App.css";
 
 
 type Shortcuts = {
-  AppName: string,
+  appname: string,
   appid: number,
   icon: string,
-  LastPlayTime: number,
-  Exe: string,
-  StartDir: string,
+  lastplaytime: number,
+  exe: string,
+  startdir: string,
 }
 
 type UserShortcuts = Record<string, Shortcuts>
@@ -59,15 +59,15 @@ function App() {
             Account {accountIdKey}
           </div>
 
-          {[...Object.values(allShortcuts[accountIdKey])].sort((a,b) => a.LastPlayTime - b.LastPlayTime).map(entry =>
+          {[...Object.values(allShortcuts[accountIdKey])].sort((a,b) => a.lastplaytime - b.lastplaytime).map(entry =>
             <div className="shortcut-entry" key={entry.appid} onClick={() => {openAppIdPrefix(entry.appid, accountIdKey)}}>
-              <img src={entry.icon} className="shortcut-img" />
+              {entry.icon && <img src={entry.icon} className="shortcut-img" />}
               <div className="shortcut-entry-title">
                  <b>App ID: { entry.appid} </b>
-                 <h1>{ entry.AppName}</h1>
+                 <h1>{ entry.appname}</h1>
               </div>
               <div className="shortcut-entry-path">
-                 {entry.Exe}
+                 {entry.exe}
               </div>
             </div>
           )}

@@ -78,17 +78,17 @@ fn next_map_item(cursor: &mut Cursor<Vec<u8>>) -> io::Result<Option<(String, Vdf
     match type_byte[0] {
         x if x == VdfMapItemType::MapEnd as u8 => Ok(None),
         x if x == VdfMapItemType::Map as u8 => {
-            let name = read_cstring(cursor)?;
+            let name = read_cstring(cursor)?.to_lowercase();
             let value = next_map(cursor)?;
             Ok(Some((name, VdfValue::Map(value))))
         }
         x if x == VdfMapItemType::String as u8 => {
-            let name = read_cstring(cursor)?;
+            let name = read_cstring(cursor)?.to_lowercase();
             let value = read_cstring(cursor)?;
             Ok(Some((name, VdfValue::String(value))))
         }
         x if x == VdfMapItemType::Number as u8 => {
-            let name = read_cstring(cursor)?;
+            let name = read_cstring(cursor)?.to_lowercase();
             let mut buf = [0u8; 4];
             cursor.read_exact(&mut buf)?;
             let value = u32::from_le_bytes(buf);

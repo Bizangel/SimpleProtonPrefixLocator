@@ -155,6 +155,7 @@ fn get_all_steam_local_vdf_shortcuts() -> Result<HashMap<String, VdfMap>, String
 
             // load img from disk and display
             let Ok(image_bytes) = fs::read(icon_str) else {
+                *icon_val = vdf_parser::VdfValue::String(String::from(""));
                 continue;
             };
 
