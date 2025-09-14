@@ -3,14 +3,33 @@ import reactLogo from "./assets/react.svg";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
 
+type Shortcuts = {
+  AppName: string,
+  appid: number,
+  icon: string
+  LastPlayTime: number
+}
+
+type UserShortcuts = Record<string, Shortcuts>
+type AllShortcuts = Record<string, UserShortcuts>
+
+// type fun = Record<String, >
+
+function App() {
   async function greet() {
     // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-    console.log("greet")
+    const res: any = await invoke("read_steam_vdf_shortcuts");
+    const parsed  = JSON.parse(res);
+    if ('error' in parsed) {
+      const errormsg = parsed["error"]
+      // TODO: error handling
+      console.log("Error: ", errormsg)
+      return;
+    }
+
+    const vdfTypes: AllShortcuts = parsed;
+    // TODO: use display type etc.
   }
 
   return (

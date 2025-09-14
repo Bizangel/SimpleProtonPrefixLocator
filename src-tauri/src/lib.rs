@@ -10,14 +10,21 @@ use std::path::PathBuf;
 use tauri::{Builder, Manager};
 use vdf_parser::VdfMap;
 
-// struct AppState {
-//     parsed_shortcuts: Result<HashMap<String, VdfMap>, String>,
-// }
+struct AppState {
+    parsed_shortcuts: Result<HashMap<String, VdfMap>, String>,
+}
 
 #[tauri::command]
-fn greet(name: &str) -> String {
-    println!("Print from rust!");
-    format!("Hello, {}! You've been greeted from Rust 2!", name)
+fn read_steam_vdf_shortcuts(state: tauri::State<AppState>) -> String {
+    return match &state.parsed_shortcuts {
+        Ok(parsed_shortcuts) => serde_json::to_string_pretty(parsed_shortcuts).unwrap(),
+        Err(e) => return format!("{{ \"error\": \"{}\"}}", e),
+    };
+}
+
+#[tauri::command]
+fn open_appid_prefix(appid: &str) {
+    println!("Opening appid from rust!");
 }
 
 fn get_all_steam_local_vdf_shortcuts() -> Result<HashMap<String, VdfMap>, String> {
@@ -34,7 +41,7 @@ fn get_all_steam_local_vdf_shortcuts() -> Result<HashMap<String, VdfMap>, String
         .filter_map(|entry| entry.file_name().into_string().ok())
         .collect();
 
-    let result_map: HashMap<String, VdfMap> = user_ids
+    let mut result_map: HashMap<String, VdfMap> = user_ids
         .into_iter()
         .map(|userid| {
             let path = steam_path.join(format!("userdata/{}/config/shortcuts.vdf", &userid));
@@ -49,21 +56,62 @@ fn get_all_steam_local_vdf_shortcuts() -> Result<HashMap<String, VdfMap>, String
         })
         .collect();
 
+    // remove the "shortcuts" from the entry name
+    let id_keys: Vec<String> = result_map.keys().map(|key| key.clone()).collect();
+    for id in id_keys.iter() {
+        let Some(mut popped) = result_map.remove(id) else {
+            continue;
+        };
+        let targetobj = popped
+            .remove("shortcuts")
+            .ok_or("Unable to parse VDF".to_string())?;
+
+        let targetobj = targetobj
+            .into_map()
+            .ok_or("Unable to parse VDF".to_string())?;
+
+        result_map.insert(id.clone(), targetobj);
+    }
+
+    for (_, user_entries) in result_map.iter_mut() {
+        let idx_keys: Vec<String> = user_entries.keys().map(|key| key.clone()).collect();
+        for idx in idx_keys.iter() {
+            let Some(entry) = user_entries.remove(idx) else {
+                continue;
+            };
+            let Some(entryasmap) = entry.as_map() else {
+                continue;
+            };
+            let Some(appid) = entryasmap.get("appid") else {
+                continue;
+            };
+            let Some(appid) = appid.as_number() else {
+                continue;
+            };
+
+            user_entries.insert(appid.to_string(), entry);
+        }
+    }
+
     Ok(result_map)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let foundres = get_all_steam_local_vdf_shortcuts();
+    let parsed_vdfs = get_all_steam_local_vdf_shortcuts();
 
-    println!("{:#?}", foundres)
-    // tauri::Builder::default()
-    //     .setup(|app| {
-    //         app.manage(AppState::default());
-    //         Ok(())
-    //     })
-    //     .plugin(tauri_plugin_opener::init())
-    //     .invoke_handler(tauri::generate_handler![greet])
-    //     .run(tauri::generate_context!())
-    //     .expect("error while running tauri application");
+    tauri::Builder::default()
+        .setup(|app| {
+            app.manage(AppState {
+                parsed_shortcuts: parsed_vdfs,
+            });
+            Ok(())
+        })
+        .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![
+            open_appid_prefix,
+            read_steam_vdf_shortcuts
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }

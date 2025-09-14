@@ -1,11 +1,49 @@
+use serde::Serialize;
 use std::collections::HashMap;
 use std::io::{self, Cursor, Read};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Serialize)]
 pub enum VdfValue {
     Map(VdfMap),
     String(String),
     Number(u32),
+}
+
+impl VdfValue {
+    pub fn as_map(&self) -> Option<&VdfMap> {
+        match self {
+            VdfValue::Map(m) => Some(m),
+            _ => None,
+        }
+    }
+
+    pub fn into_map(self) -> Option<VdfMap> {
+        match self {
+            VdfValue::Map(m) => Some(m),
+            _ => None,
+        }
+    }
+
+    pub fn as_map_mut(&mut self) -> Option<&mut VdfMap> {
+        match self {
+            VdfValue::Map(m) => Some(m),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(&self) -> Option<&String> {
+        match self {
+            VdfValue::String(m) => Some(m),
+            _ => None,
+        }
+    }
+
+    pub fn as_number(&self) -> Option<&u32> {
+        match self {
+            VdfValue::Number(m) => Some(m),
+            _ => None,
+        }
+    }
 }
 
 pub type VdfMap = HashMap<String, VdfValue>;
