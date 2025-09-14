@@ -6,14 +6,14 @@ import "./App.css";
 type Shortcuts = {
   AppName: string,
   appid: number,
-  icon: string
-  LastPlayTime: number
+  icon: string,
+  LastPlayTime: number,
+  Exe: string,
+  StartDir: string,
 }
 
 type UserShortcuts = Record<string, Shortcuts>
 type AllShortcuts = Record<string, UserShortcuts>
-
-// type fun = Record<String, >
 
 function App() {
   const [allShortcuts, setAllShortcuts] = useState<AllShortcuts>();
@@ -34,6 +34,10 @@ function App() {
   useEffect(() => {
     readSteamVdfShortcuts();
   }, [setAllShortcuts])
+
+  const openAppIdPrefix = useCallback(async (appid: number, userid: string) => {
+    await invoke("open_appid_prefix", {appid: appid.toString(), userid: userid });
+  }, [])
 
   if (!allShortcuts)
     return;
@@ -56,11 +60,14 @@ function App() {
           </div>
 
           {[...Object.values(allShortcuts[accountIdKey])].sort((a,b) => a.LastPlayTime - b.LastPlayTime).map(entry =>
-            <div className="shortcut-entry" key={entry.appid}>
+            <div className="shortcut-entry" key={entry.appid} onClick={() => {openAppIdPrefix(entry.appid, accountIdKey)}}>
               <img src={entry.icon} className="shortcut-img" />
               <div className="shortcut-entry-title">
-                  <b>App ID: { entry.appid} </b>
+                 <b>App ID: { entry.appid} </b>
                  <h1>{ entry.AppName}</h1>
+              </div>
+              <div className="shortcut-entry-path">
+                 {entry.Exe}
               </div>
             </div>
           )}

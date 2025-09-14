@@ -5,6 +5,9 @@ use base64::{engine::general_purpose, Engine as _};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
+use std::io;
+use std::process::Child;
+use std::process::Command;
 use tauri::Manager;
 use vdf_parser::VdfMap;
 
@@ -34,9 +37,34 @@ fn read_steam_vdf_shortcuts(state: tauri::State<AppState>) -> String {
     };
 }
 
+#[cfg(target_os = "linux")]
+fn xdg_open_folder(folder_path: &str) -> io::Result<Child> {
+    Command::new("xdg-open").arg(folder_path).spawn()
+}
+
 #[tauri::command]
-fn open_appid_prefix(appid: &str) {
-    println!("Opening appid from rust!");
+fn open_appid_prefix(state: tauri::State<AppState>, userid: &str, appid: &str) {
+    println!("Opening appid from rust! {}", appid);
+
+    let Ok(parsed_shortcuts) = &state.parsed_shortcuts else {
+        return;
+    };
+    let Some(userentries) = parsed_shortcuts.get(userid) else {
+        return;
+    };
+    if !userentries.contains_key(appid) {
+        return;
+    }
+    let Some(user_home_dir) = env::home_dir() else {
+        return;
+    };
+    let steam_path = user_home_dir.join(".local/share/Steam");
+    let prefix_path = steam_path.join(format!("steamapps/compatdata/{}/pfx/drive_c", appid));
+    let Some(prefix_path_str) = prefix_path.to_str() else {
+        return;
+    };
+
+    let _ = xdg_open_folder(prefix_path_str); // doesn't matter if error
 }
 
 fn get_all_steam_local_vdf_shortcuts() -> Result<HashMap<String, VdfMap>, String> {

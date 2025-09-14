@@ -45,6 +45,15 @@
   flex-direction: row;
 
   align-items: center;
+  transition: opacity 0.2s ease-in-out;
+  cursor: pointer;
+
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.shortcut-entry:hover {
+  opacity: 0.5;
 }
 
 .shortcut-img {
@@ -56,7 +65,17 @@
 
 .shortcut-entry-title {
   text-align: center;
-  /* font-size: large; */
+  flex: 0 0 auto;
+  margin: 20px;
+}
+
+.shortcut-entry-path {
+  flex-grow: 1;
+  opacity: 0.7;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 
