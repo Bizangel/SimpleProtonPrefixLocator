@@ -1,7 +1,7 @@
 [package]
 name = "simple-proton-save-locator"
 version = "0.1.0"
-description = "A Tauri App"
+description = "Simple GUI app to find proton prefixes for proton apps"
 authors = ["you"]
 edition = "2021"
 
