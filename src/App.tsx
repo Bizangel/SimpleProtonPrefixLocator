@@ -1,5 +1,4 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
+import { useCallback, useEffect, useState, Fragment } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
@@ -17,34 +16,46 @@ type AllShortcuts = Record<string, UserShortcuts>
 // type fun = Record<String, >
 
 function App() {
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+  const [allShortcuts, setAllShortcuts] = useState<AllShortcuts>();
+  const [errorMsg, setErrorMsg] = useState<string>("");
+
+  const readSteamVdfShortcuts = useCallback(async () => {
     const res: any = await invoke("read_steam_vdf_shortcuts");
     const parsed  = JSON.parse(res);
     if ('error' in parsed) {
-      const errormsg = parsed["error"]
-      // TODO: error handling
-      console.log("Error: ", errormsg)
+      setErrorMsg(parsed["error"]);
       return;
     }
 
     const vdfTypes: AllShortcuts = parsed;
-    // TODO: use display type etc.
-  }
+    setAllShortcuts(vdfTypes);
+  }, [setAllShortcuts, setErrorMsg])
 
+  useEffect(() => {
+    readSteamVdfShortcuts();
+  }, [setAllShortcuts])
+
+  if (!allShortcuts)
+    return;
+
+  console.log(allShortcuts)
   return (
-    <main className="container">
-      <button onClick={greet}>
-        read vdf
-      </button>
+    <div className="column-container">
+      {Object.keys(allShortcuts).map(accountIdKey =>
+        <Fragment key={accountIdKey}>
+          <div className="id-header" key={`header-${accountIdKey}`}>
+            Account {accountIdKey}
+          </div>
 
-      <div className="entry">
-        Hello
-      </div>
-      <div className="entry">
-        Hello
-      </div>
-    </main>
+          {Object.values(allShortcuts[accountIdKey]).map(entry =>
+            <div className="shortcut-entry" key={entry.appid}>
+              <img src={entry.icon} />
+              {entry.AppName}
+            </div>
+          )}
+        </Fragment>
+      )}
+    </div>
   );
 }
 

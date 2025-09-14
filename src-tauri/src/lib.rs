@@ -1,14 +1,26 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod vdf_parser;
 
+use base64::{engine::general_purpose, Engine as _};
 use std::collections::HashMap;
 use std::env;
-use std::env::home_dir;
 use std::fs;
-use std::io;
-use std::path::PathBuf;
-use tauri::{Builder, Manager};
+use tauri::Manager;
 use vdf_parser::VdfMap;
+
+fn mime_from_extension(path: &str) -> &'static str {
+    if path.ends_with(".png") {
+        "image/png"
+    } else if path.ends_with(".jpg") || path.ends_with(".jpeg") {
+        "image/jpeg"
+    } else if path.ends_with(".ico") {
+        "image/x-icon"
+    } else if path.ends_with(".gif") {
+        "image/gif"
+    } else {
+        "application/octet-stream"
+    }
+}
 
 struct AppState {
     parsed_shortcuts: Result<HashMap<String, VdfMap>, String>,
@@ -73,6 +85,7 @@ fn get_all_steam_local_vdf_shortcuts() -> Result<HashMap<String, VdfMap>, String
         result_map.insert(id.clone(), targetobj);
     }
 
+    // Add appid as keys instead of indexes
     for (_, user_entries) in result_map.iter_mut() {
         let idx_keys: Vec<String> = user_entries.keys().map(|key| key.clone()).collect();
         for idx in idx_keys.iter() {
@@ -90,6 +103,39 @@ fn get_all_steam_local_vdf_shortcuts() -> Result<HashMap<String, VdfMap>, String
             };
 
             user_entries.insert(appid.to_string(), entry);
+        }
+    }
+
+    // Now replace images for b64 content.
+    for (_, user_entries) in result_map.iter_mut() {
+        for (_, shortcutentry) in user_entries.iter_mut() {
+            let Some(shortcutentry) = shortcutentry.as_map_mut() else {
+                continue;
+            };
+
+            let Some(icon_val) = shortcutentry.get_mut("icon") else {
+                continue;
+            };
+
+            let Some(icon_str) = icon_val.as_str() else {
+                continue;
+            };
+
+            if icon_str.is_empty() {
+                continue;
+            }
+
+            // load img from disk and display
+            let Ok(image_bytes) = fs::read(icon_str) else {
+                continue;
+            };
+
+            let b64encoded = general_purpose::STANDARD.encode(&image_bytes);
+            let mime = mime_from_extension(&icon_str);
+
+            // replace
+            *icon_val =
+                vdf_parser::VdfValue::String(format!("data:{};base64,{}", mime, b64encoded));
         }
     }
 
