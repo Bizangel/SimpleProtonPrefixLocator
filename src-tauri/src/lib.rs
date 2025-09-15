@@ -4,7 +4,6 @@ mod proton_app;
 mod utils;
 use binary_vdf_parser::VdfMap;
 use proton_app::ProtonApp;
-use std::env;
 use std::fs;
 use tauri::Manager;
 
@@ -27,27 +26,16 @@ fn open_appid_prefix(state: tauri::State<AppState>, appid: &str) -> Result<(), S
         return Err("Invalid AppID".to_string());
     }
 
-    let user_home_dir = env::home_dir().ok_or_else(|| "Unable to fetch $HOME".to_string())?;
-    let prefix_path = user_home_dir
-        .join(".local/share/Steam")
-        .join(format!("steamapps/compatdata/{}/pfx/drive_c", appid));
+    let steam_path = utils::get_steam_path()?;
+    let prefix_path = steam_path.join(format!("steamapps/compatdata/{}/pfx/drive_c", appid));
 
     let _ = utils::xdg_open_folder(&prefix_path); // doesn't matter if error
     Ok(())
 }
 
 fn get_protonapps_from_vdf_shortcuts() -> Result<Vec<ProtonApp>, String> {
-    let user_home_dir = env::home_dir().ok_or("Could not find home directory!".to_string())?;
-    let steam_path = user_home_dir.join(".local/share/Steam");
-    if !steam_path.is_dir() {
-        return Err("Steam folder not found! Is steam installed?".to_string());
-    }
-
-    let user_ids: Vec<String> = fs::read_dir(steam_path.join("userdata"))
-        .map_err(|x| x.to_string())?
-        .filter_map(|entry| entry.ok())
-        .filter_map(|entry| entry.file_name().into_string().ok())
-        .collect();
+    let steam_path = utils::get_steam_path()?;
+    let user_ids = utils::get_all_steam_user_ids(&steam_path)?;
 
     let vdfmaps: Vec<VdfMap> = user_ids
         .iter()
@@ -69,14 +57,38 @@ fn get_protonapps_from_vdf_shortcuts() -> Result<Vec<ProtonApp>, String> {
     Ok(parsed)
 }
 
+// fn get_all_steam_apps() -> Result<Vec<ProtonApp>, String> {
+//     let steam_path = utils::get_steam_path()?;
+//     let user_ids = utils::get_all_steam_user_ids(&steam_path)?;
+//     let vdfmaps: Vec<VdfMap> = user_ids
+//         .iter()
+//         .map(|userid| steam_path.join(format!("userdata/{}/config/shortcuts.vdf", &userid)))
+//         .filter(|path| path.is_file())
+//         .filter_map(|path| {
+//             fs::read(&path)
+//                 .ok()
+//                 .and_then(|data| binary_vdf_parser::read_vdf(data).ok())
+//         })
+//         .collect();
+
+//     let parsed: Vec<ProtonApp> = vdfmaps
+//         .iter()
+//         .filter_map(|x| ProtonApp::from_vdf_shortcut(&x).ok())
+//         .flatten()
+//         .collect();
+
+//     Ok(parsed)
+// }
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let parsed_vdfs = get_protonapps_from_vdf_shortcuts();
+    // let get_all_steam_apps = get_all_steam_apps();
+    let shortcuts_apps = get_protonapps_from_vdf_shortcuts();
 
     tauri::Builder::default()
         .setup(|app| {
             app.manage(AppState {
-                parsed_shortcuts: parsed_vdfs,
+                parsed_shortcuts: shortcuts_apps,
             });
             Ok(())
         })

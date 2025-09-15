@@ -1,8 +1,18 @@
 use crate::binary_vdf_parser::VdfMap;
 use crate::utils;
 use base64::{engine::general_purpose, Engine as _};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+
 use std::fs;
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "lowercase")]
+struct AppManifest {
+    appid: String,
+    name: String,
+    lastplayed: String,
+    installdir: String,
+}
 
 #[derive(Debug, Serialize)]
 pub struct ProtonApp {
