@@ -60,11 +60,13 @@ function App() {
           </div>
 
           {[...Object.values(allShortcuts[accountIdKey])].sort((a,b) => a.lastplaytime - b.lastplaytime).map(entry =>
-            <div className="shortcut-entry" key={entry.appid} onClick={() => {openAppIdPrefix(entry.appid, accountIdKey)}}>
-              {entry.icon && <img src={entry.icon} className="shortcut-img" />}
+            <div className="shortcut-entry" key={entry.appid} onClick={() => { openAppIdPrefix(entry.appid, accountIdKey) }}>
+              <div className={`shortcut-img-container ${entry.icon ? "" : "noimg"}`}>
+                {entry.icon && <img src={entry.icon} className="shortcut-img" />}
+              </div>
               <div className="shortcut-entry-title">
                  <b>App ID: { entry.appid} </b>
-                 <h1>{ entry.appname}</h1>
+                 <p>{ entry.appname}</p>
               </div>
               <div className="shortcut-entry-path">
                  {entry.exe}
