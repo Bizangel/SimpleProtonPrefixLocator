@@ -39,6 +39,14 @@ impl VdfValue {
         }
     }
 
+    pub fn copy_as_str(&self) -> Option<String> {
+        match self {
+            VdfValue::String(m) => Some(m.clone()),
+            VdfValue::Number(n) => Some(n.to_string()),
+            _ => None,
+        }
+    }
+
     pub fn as_number(&self) -> Option<&u32> {
         match self {
             VdfValue::Number(m) => Some(m),

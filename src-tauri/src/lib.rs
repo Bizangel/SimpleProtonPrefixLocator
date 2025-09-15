@@ -1,7 +1,11 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-mod vdf_parser;
+mod binary_vdf_parser;
+mod proton_app;
+
+use proton_app::ProtonApp;
 
 use base64::{engine::general_purpose, Engine as _};
+use binary_vdf_parser::VdfMap;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -9,7 +13,6 @@ use std::io;
 use std::process::Child;
 use std::process::Command;
 use tauri::Manager;
-use vdf_parser::VdfMap;
 
 fn mime_from_extension(path: &str) -> &'static str {
     if path.ends_with(".png") {
@@ -67,7 +70,47 @@ fn open_appid_prefix(state: tauri::State<AppState>, userid: &str, appid: &str) {
     let _ = xdg_open_folder(prefix_path_str); // doesn't matter if error
 }
 
-fn get_all_steam_local_vdf_shortcuts() -> Result<HashMap<String, VdfMap>, String> {
+fn get_protonapps_from_shortcuts(vdf: &VdfMap) -> Result<Vec<ProtonApp>, String> {
+    let shortcuts = vdf
+        .get("shortcuts")
+        .ok_or_else(|| "Unable to parse shortcuts".to_string())?
+        .as_map()
+        .ok_or_else(|| "Unable to parse shortcuts".to_string())?;
+
+    let apps = shortcuts
+        .values()
+        .filter_map(|entry| {
+            let entry = entry.as_map()?;
+            let icon_path = entry.get("icon")?.as_str()?;
+            // Build icon string only if path is non-empty
+            let icon = if icon_path.is_empty() {
+                String::new()
+            } else {
+                match fs::read(icon_path) {
+                    Ok(bytes) => {
+                        let icon_b64 = general_purpose::STANDARD.encode(bytes);
+                        let icon_mime = mime_from_extension(icon_path);
+                        format!("data:{};base64,{}", icon_mime, icon_b64)
+                    }
+                    Err(_) => String::new(), // include app, but no icon
+                }
+            };
+
+            Some(ProtonApp {
+                appid: entry.get("appid")?.copy_as_str()?,
+                appname: entry.get("appname")?.copy_as_str()?,
+                icon: icon,
+                lastplaytime: entry.get("lastplaytime")?.copy_as_str()?,
+                exe: entry.get("exe")?.copy_as_str()?,
+                startdir: entry.get("startdir")?.copy_as_str()?,
+            })
+        })
+        .collect();
+
+    Ok(apps)
+}
+
+fn get_all_steam_local_vdf_shortcuts() -> Result<Vec<ProtonApp>, String> {
     let user_home_dir = env::home_dir().ok_or("Could not find home directory!".to_string())?;
     let steam_path = user_home_dir.join(".local/share/Steam");
 
@@ -81,112 +124,43 @@ fn get_all_steam_local_vdf_shortcuts() -> Result<HashMap<String, VdfMap>, String
         .filter_map(|entry| entry.file_name().into_string().ok())
         .collect();
 
-    let mut result_map: HashMap<String, VdfMap> = user_ids
-        .into_iter()
-        .map(|userid| {
-            let path = steam_path.join(format!("userdata/{}/config/shortcuts.vdf", &userid));
-            (userid, path)
-        })
-        .filter(|(_, path)| path.is_file())
-        .filter_map(|(userid, path)| {
+    let vdfmaps: Vec<VdfMap> = user_ids
+        .iter()
+        .map(|userid| steam_path.join(format!("userdata/{}/config/shortcuts.vdf", &userid)))
+        .filter(|path| path.is_file())
+        .filter_map(|path| {
             fs::read(&path)
                 .ok()
-                .and_then(|data| vdf_parser::read_vdf(data).ok())
-                .map(|parsed| (userid, parsed))
+                .and_then(|data| binary_vdf_parser::read_vdf(data).ok())
         })
         .collect();
 
-    // remove the "shortcuts" from the entry name
-    let id_keys: Vec<String> = result_map.keys().map(|key| key.clone()).collect();
-    for id in id_keys.iter() {
-        let Some(mut popped) = result_map.remove(id) else {
-            continue;
-        };
-        let targetobj = popped
-            .remove("shortcuts")
-            .ok_or("Unable to parse VDF".to_string())?;
+    let parsed: Vec<ProtonApp> = vdfmaps
+        .iter()
+        .filter_map(|x| get_protonapps_from_shortcuts(&x).ok())
+        .flatten()
+        .collect();
 
-        let targetobj = targetobj
-            .into_map()
-            .ok_or("Unable to parse VDF".to_string())?;
-
-        result_map.insert(id.clone(), targetobj);
-    }
-
-    // Add appid as keys instead of indexes
-    for (_, user_entries) in result_map.iter_mut() {
-        let idx_keys: Vec<String> = user_entries.keys().map(|key| key.clone()).collect();
-        for idx in idx_keys.iter() {
-            let Some(entry) = user_entries.remove(idx) else {
-                continue;
-            };
-            let Some(entryasmap) = entry.as_map() else {
-                continue;
-            };
-            let Some(appid) = entryasmap.get("appid") else {
-                continue;
-            };
-            let Some(appid) = appid.as_number() else {
-                continue;
-            };
-
-            user_entries.insert(appid.to_string(), entry);
-        }
-    }
-
-    // Now replace images for b64 content.
-    for (_, user_entries) in result_map.iter_mut() {
-        for (_, shortcutentry) in user_entries.iter_mut() {
-            let Some(shortcutentry) = shortcutentry.as_map_mut() else {
-                continue;
-            };
-
-            let Some(icon_val) = shortcutentry.get_mut("icon") else {
-                continue;
-            };
-
-            let Some(icon_str) = icon_val.as_str() else {
-                continue;
-            };
-
-            if icon_str.is_empty() {
-                continue;
-            }
-
-            // load img from disk and display
-            let Ok(image_bytes) = fs::read(icon_str) else {
-                *icon_val = vdf_parser::VdfValue::String(String::from(""));
-                continue;
-            };
-
-            let b64encoded = general_purpose::STANDARD.encode(&image_bytes);
-            let mime = mime_from_extension(&icon_str);
-
-            // replace
-            *icon_val =
-                vdf_parser::VdfValue::String(format!("data:{};base64,{}", mime, b64encoded));
-        }
-    }
-
-    Ok(result_map)
+    Ok(parsed)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let parsed_vdfs = get_all_steam_local_vdf_shortcuts();
 
-    tauri::Builder::default()
-        .setup(|app| {
-            app.manage(AppState {
-                parsed_shortcuts: parsed_vdfs,
-            });
-            Ok(())
-        })
-        .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![
-            open_appid_prefix,
-            read_steam_vdf_shortcuts
-        ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+    println!("{:#?}", parsed_vdfs);
+    // tauri::Builder::default()
+    //     .setup(|app| {
+    //         app.manage(AppState {
+    //             parsed_shortcuts: parsed_vdfs,
+    //         });
+    //         Ok(())
+    //     })
+    //     .plugin(tauri_plugin_opener::init())
+    //     .invoke_handler(tauri::generate_handler![
+    //         open_appid_prefix,
+    //         read_steam_vdf_shortcuts
+    //     ])
+    //     .run(tauri::generate_context!())
+    //     .expect("error while running tauri application");
 }
