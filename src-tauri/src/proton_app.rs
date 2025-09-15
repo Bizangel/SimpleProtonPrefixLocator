@@ -14,6 +14,7 @@ pub struct ProtonApp {
     pub lastplaytime: String,
     pub exe: String,
     pub startdir: String,
+    pub installdir: String,
 }
 
 impl ProtonApp {
@@ -50,6 +51,7 @@ impl ProtonApp {
                     lastplaytime: entry.get("lastplaytime")?.copy_as_str()?,
                     exe: entry.get("exe")?.copy_as_str()?,
                     startdir: entry.get("startdir")?.copy_as_str()?,
+                    installdir: "".to_string(),
                 })
             })
             .collect();
@@ -57,7 +59,6 @@ impl ProtonApp {
         Ok(apps)
     }
 
-    /// Returns the path to the Wine prefix for this app
     pub fn prefix_path(&self) -> Option<path::PathBuf> {
         let steam_path = utils::get_steam_path().ok()?;
         let path = steam_path
@@ -67,17 +68,33 @@ impl ProtonApp {
         Some(path)
     }
 
-    /// Returns true if the Wine prefix exists and has been launched at least once
     pub fn prefix_path_exists(&self) -> bool {
         let prefix = match self.prefix_path() {
             Some(p) => p,
             None => return false,
         };
 
-        // The prefix is only complete if the directory exists and pfx.lock exists in parent
         prefix.is_dir()
             && prefix
                 .parent()
                 .map_or(false, |parent| parent.join("pfx.lock").is_file())
+    }
+
+    pub fn install_path(&self) -> Option<path::PathBuf> {
+        let steam_path = utils::get_steam_path().ok()?;
+        if self.installdir.is_empty() {
+            return None;
+        }
+
+        Some(steam_path.join("steamapps/common").join(&self.installdir))
+    }
+
+    pub fn is_tool(&self) -> bool {
+        let path = match self.install_path() {
+            Some(p) => p,
+            None => return false,
+        };
+
+        path.join("toolmanifest.vdf").is_file()
     }
 }

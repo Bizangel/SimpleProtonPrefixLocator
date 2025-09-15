@@ -88,7 +88,8 @@ pub fn get_all_steam_apps() -> Result<Vec<ProtonApp>, String> {
                 appid,
                 appname: get_str_ci(appstate, "name"),
                 exe: get_str_ci(appstate, "exe"),
-                startdir: get_str_ci(appstate, "installdir"),
+                startdir: "".to_string(),
+                installdir: get_str_ci(appstate, "installdir"),
                 lastplaytime: get_str_ci(appstate, "lastplayed"),
                 icon,
             })
@@ -109,6 +110,7 @@ pub fn run() {
     let filtered: Result<Vec<ProtonApp>, String> = merged.map(|apps: Vec<ProtonApp>| {
         apps.into_iter()
             .filter(|app| app.prefix_path_exists())
+            .filter(|app| !app.is_tool()) // remove proton runtimes etc
             .collect::<Vec<ProtonApp>>()
     });
 
