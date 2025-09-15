@@ -6,11 +6,10 @@ use proton_app::ProtonApp;
 
 use base64::{engine::general_purpose, Engine as _};
 use binary_vdf_parser::VdfMap;
-use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io;
-use std::process::Child;
+use std::path;
 use std::process::Command;
 use tauri::Manager;
 
@@ -29,7 +28,7 @@ fn mime_from_extension(path: &str) -> &'static str {
 }
 
 struct AppState {
-    parsed_shortcuts: Result<HashMap<String, VdfMap>, String>,
+    parsed_shortcuts: Result<Vec<ProtonApp>, String>,
 }
 
 #[tauri::command]
@@ -41,36 +40,27 @@ fn read_steam_vdf_shortcuts(state: tauri::State<AppState>) -> String {
 }
 
 #[cfg(target_os = "linux")]
-fn xdg_open_folder(folder_path: &str) -> io::Result<Child> {
+fn xdg_open_folder(folder_path: &path::Path) -> io::Result<std::process::Child> {
     Command::new("xdg-open").arg(folder_path).spawn()
 }
 
 #[tauri::command]
-fn open_appid_prefix(state: tauri::State<AppState>, userid: &str, appid: &str) {
-    println!("Opening appid from rust! {}", appid);
-
-    let Ok(parsed_shortcuts) = &state.parsed_shortcuts else {
-        return;
-    };
-    let Some(userentries) = parsed_shortcuts.get(userid) else {
-        return;
-    };
-    if !userentries.contains_key(appid) {
-        return;
+fn open_appid_prefix(state: tauri::State<AppState>, appid: &str) -> Result<(), String> {
+    let parsed = state.parsed_shortcuts.as_ref()?;
+    if !parsed.iter().any(|x| x.appid == appid) {
+        return Err("Invalid AppID".to_string());
     }
-    let Some(user_home_dir) = env::home_dir() else {
-        return;
-    };
-    let steam_path = user_home_dir.join(".local/share/Steam");
-    let prefix_path = steam_path.join(format!("steamapps/compatdata/{}/pfx/drive_c", appid));
-    let Some(prefix_path_str) = prefix_path.to_str() else {
-        return;
-    };
 
-    let _ = xdg_open_folder(prefix_path_str); // doesn't matter if error
+    let user_home_dir = env::home_dir().ok_or_else(|| "Unable to fetch $HOME".to_string())?;
+    let prefix_path = user_home_dir
+        .join(".local/share/Steam")
+        .join(format!("steamapps/compatdata/{}/pfx/drive_c", appid));
+
+    let _ = xdg_open_folder(&prefix_path); // doesn't matter if error
+    Ok(())
 }
 
-fn get_protonapps_from_shortcuts(vdf: &VdfMap) -> Result<Vec<ProtonApp>, String> {
+fn get_protonapps_from_shortcuts_vdf(vdf: &VdfMap) -> Result<Vec<ProtonApp>, String> {
     let shortcuts = vdf
         .get("shortcuts")
         .ok_or_else(|| "Unable to parse shortcuts".to_string())?
@@ -110,7 +100,7 @@ fn get_protonapps_from_shortcuts(vdf: &VdfMap) -> Result<Vec<ProtonApp>, String>
     Ok(apps)
 }
 
-fn get_all_steam_local_vdf_shortcuts() -> Result<Vec<ProtonApp>, String> {
+fn get_protonapps_from_vdf_shortcuts() -> Result<Vec<ProtonApp>, String> {
     let user_home_dir = env::home_dir().ok_or("Could not find home directory!".to_string())?;
     let steam_path = user_home_dir.join(".local/share/Steam");
 
@@ -137,7 +127,7 @@ fn get_all_steam_local_vdf_shortcuts() -> Result<Vec<ProtonApp>, String> {
 
     let parsed: Vec<ProtonApp> = vdfmaps
         .iter()
-        .filter_map(|x| get_protonapps_from_shortcuts(&x).ok())
+        .filter_map(|x| get_protonapps_from_shortcuts_vdf(&x).ok())
         .flatten()
         .collect();
 
@@ -146,21 +136,20 @@ fn get_all_steam_local_vdf_shortcuts() -> Result<Vec<ProtonApp>, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let parsed_vdfs = get_all_steam_local_vdf_shortcuts();
+    let parsed_vdfs = get_protonapps_from_vdf_shortcuts();
 
-    println!("{:#?}", parsed_vdfs);
-    // tauri::Builder::default()
-    //     .setup(|app| {
-    //         app.manage(AppState {
-    //             parsed_shortcuts: parsed_vdfs,
-    //         });
-    //         Ok(())
-    //     })
-    //     .plugin(tauri_plugin_opener::init())
-    //     .invoke_handler(tauri::generate_handler![
-    //         open_appid_prefix,
-    //         read_steam_vdf_shortcuts
-    //     ])
-    //     .run(tauri::generate_context!())
-    //     .expect("error while running tauri application");
+    tauri::Builder::default()
+        .setup(|app| {
+            app.manage(AppState {
+                parsed_shortcuts: parsed_vdfs,
+            });
+            Ok(())
+        })
+        .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![
+            open_appid_prefix,
+            read_steam_vdf_shortcuts
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }

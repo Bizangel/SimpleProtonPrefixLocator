@@ -1,22 +1,19 @@
-import { useCallback, useEffect, useState, Fragment } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
 
-type Shortcuts = {
+type ProtonApp = {
   appname: string,
-  appid: number,
+  appid: string,
   icon: string,
-  lastplaytime: number,
+  lastplaytime: string,
   exe: string,
   startdir: string,
 }
 
-type UserShortcuts = Record<string, Shortcuts>
-type AllShortcuts = Record<string, UserShortcuts>
-
 function App() {
-  const [allShortcuts, setAllShortcuts] = useState<AllShortcuts>();
+  const [allApps, setAllApps] = useState<ProtonApp[]>([]);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
   const readSteamVdfShortcuts = useCallback(async () => {
@@ -27,22 +24,17 @@ function App() {
       return;
     }
 
-    const vdfTypes: AllShortcuts = parsed;
-    setAllShortcuts(vdfTypes);
-  }, [setAllShortcuts, setErrorMsg])
+    setAllApps(parsed);
+  }, [setAllApps, setErrorMsg])
 
   useEffect(() => {
     readSteamVdfShortcuts();
-  }, [setAllShortcuts])
+  }, [setAllApps])
 
-  const openAppIdPrefix = useCallback(async (appid: number, userid: string) => {
-    await invoke("open_appid_prefix", {appid: appid.toString(), userid: userid });
+  const openAppIdPrefix = useCallback(async (appid: string) => {
+    await invoke("open_appid_prefix", {appid: appid });
   }, [])
 
-  if (!allShortcuts)
-    return;
-
-  console.log(allShortcuts)
   if (errorMsg)
     return (
       <div className="error-container">
@@ -53,27 +45,19 @@ function App() {
 
   return (
     <div className="column-container">
-      {Object.keys(allShortcuts).map(accountIdKey =>
-        <Fragment key={accountIdKey}>
-          <div className="id-header" key={`header-${accountIdKey}`}>
-            Account {accountIdKey}
-          </div>
-
-          {[...Object.values(allShortcuts[accountIdKey])].sort((a,b) => a.lastplaytime - b.lastplaytime).map(entry =>
-            <div className="shortcut-entry" key={entry.appid} onClick={() => { openAppIdPrefix(entry.appid, accountIdKey) }}>
-              <div className={`shortcut-img-container ${entry.icon ? "" : "noimg"}`}>
-                {entry.icon && <img src={entry.icon} className="shortcut-img" />}
-              </div>
-              <div className="shortcut-entry-title">
-                 <b>App ID: { entry.appid} </b>
-                 <p>{ entry.appname}</p>
-              </div>
-              <div className="shortcut-entry-path">
-                 {entry.exe}
-              </div>
+      {allApps.map(appEntry =>
+          <div className="shortcut-entry" key={appEntry.appid} onClick={() => { openAppIdPrefix(appEntry.appid) }}>
+            <div className={`shortcut-img-container ${appEntry.icon ? "" : "noimg"}`}>
+              {appEntry.icon && <img src={appEntry.icon} className="shortcut-img" />}
             </div>
-          )}
-        </Fragment>
+            <div className="shortcut-entry-title">
+                <b>App ID: { appEntry.appid} </b>
+                <p>{ appEntry.appname}</p>
+            </div>
+            <div className="shortcut-entry-path">
+                {appEntry.exe}
+            </div>
+          </div>
       )}
     </div>
   );

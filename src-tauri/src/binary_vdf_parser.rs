@@ -18,20 +18,6 @@ impl VdfValue {
         }
     }
 
-    pub fn into_map(self) -> Option<VdfMap> {
-        match self {
-            VdfValue::Map(m) => Some(m),
-            _ => None,
-        }
-    }
-
-    pub fn as_map_mut(&mut self) -> Option<&mut VdfMap> {
-        match self {
-            VdfValue::Map(m) => Some(m),
-            _ => None,
-        }
-    }
-
     pub fn as_str(&self) -> Option<&String> {
         match self {
             VdfValue::String(m) => Some(m),
@@ -43,13 +29,6 @@ impl VdfValue {
         match self {
             VdfValue::String(m) => Some(m.clone()),
             VdfValue::Number(n) => Some(n.to_string()),
-            _ => None,
-        }
-    }
-
-    pub fn as_number(&self) -> Option<&u32> {
-        match self {
-            VdfValue::Number(m) => Some(m),
             _ => None,
         }
     }
