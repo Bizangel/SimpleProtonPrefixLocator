@@ -1858,16 +1858,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "keyvalues-serde"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2db0b750e9ae64e6c3d913832dc19ed580b9210bcd7c4dd6d0dd21af469fc14"
-dependencies = [
- "keyvalues-parser",
- "serde",
-]
-
-[[package]]
 name = "kuchikiki"
 version = "0.8.8-speedreader"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3389,7 +3379,8 @@ name = "simple-proton-save-locator"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
- "keyvalues-serde",
+ "glob",
+ "keyvalues-parser",
  "serde",
  "serde_json",
  "tauri",
