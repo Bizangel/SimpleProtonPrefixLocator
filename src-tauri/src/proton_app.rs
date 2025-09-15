@@ -2,6 +2,7 @@ use crate::binary_vdf_parser::VdfMap;
 use crate::utils;
 use base64::{engine::general_purpose, Engine as _};
 use serde::Serialize;
+use std::path;
 
 use std::fs;
 
@@ -54,5 +55,29 @@ impl ProtonApp {
             .collect();
 
         Ok(apps)
+    }
+
+    /// Returns the path to the Wine prefix for this app
+    pub fn prefix_path(&self) -> Option<path::PathBuf> {
+        let steam_path = utils::get_steam_path().ok()?;
+        let path = steam_path
+            .join("steamapps/compatdata")
+            .join(&self.appid)
+            .join("pfx");
+        Some(path)
+    }
+
+    /// Returns true if the Wine prefix exists and has been launched at least once
+    pub fn prefix_path_exists(&self) -> bool {
+        let prefix = match self.prefix_path() {
+            Some(p) => p,
+            None => return false,
+        };
+
+        // The prefix is only complete if the directory exists and pfx.lock exists in parent
+        prefix.is_dir()
+            && prefix
+                .parent()
+                .map_or(false, |parent| parent.join("pfx.lock").is_file())
     }
 }

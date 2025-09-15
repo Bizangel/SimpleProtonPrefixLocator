@@ -29,7 +29,7 @@ fn open_appid_prefix(state: tauri::State<AppState>, appid: &str) -> Result<(), S
     }
 
     let steam_path = utils::get_steam_path()?;
-    let prefix_path = steam_path.join(format!("steamapps/compatdata/{}/pfx/drive_c", appid));
+    let prefix_path = steam_path.join(format!("steamapps/compatdata/{}/pfx", appid));
 
     let _ = utils::xdg_open_folder(&prefix_path); // doesn't matter if error
     Ok(())
@@ -106,10 +106,16 @@ pub fn run() {
     let merged =
         all_steam_apps.and_then(|v1| shortcuts_apps.map(|v2| v1.into_iter().chain(v2).collect()));
 
+    let filtered: Result<Vec<ProtonApp>, String> = merged.map(|apps: Vec<ProtonApp>| {
+        apps.into_iter()
+            .filter(|app| app.prefix_path_exists())
+            .collect::<Vec<ProtonApp>>()
+    });
+
     tauri::Builder::default()
         .setup(|app| {
             app.manage(AppState {
-                parsed_shortcuts: merged,
+                parsed_shortcuts: filtered,
             });
             Ok(())
         })
