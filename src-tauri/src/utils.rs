@@ -1,3 +1,5 @@
+use base64::{engine::general_purpose, Engine as _};
+use regex::Regex;
 use std::env;
 use std::fs;
 use std::io;
@@ -40,4 +42,41 @@ pub fn get_all_steam_user_ids(steam_path: &path::PathBuf) -> Result<Vec<String>,
         .filter_map(|entry| entry.file_name().into_string().ok())
         .collect();
     Ok(user_ids)
+}
+
+// Vibe coded + based from https://github.com/Matoking/protontricks/blob/master/src/protontricks/steam.py
+pub fn load_steam_app_icon(steam_path: &path::Path, appid: &str) -> Option<String> {
+    let library_cache = steam_path.join("appcache/librarycache").join(appid);
+    let mut icon_path: Option<path::PathBuf> = None;
+
+    if library_cache.is_dir() {
+        let re = Regex::new(r"^[a-f0-9]{40}\.jpg$").unwrap();
+        if let Ok(entries) = fs::read_dir(&library_cache) {
+            for entry in entries.flatten() {
+                let file_name = entry.file_name();
+                if re.is_match(&file_name.to_string_lossy()) {
+                    icon_path = Some(entry.path());
+                    break;
+                }
+            }
+        }
+    }
+
+    if icon_path.is_none() {
+        let fallback = steam_path
+            .join("appcache/librarycache")
+            .join(format!("{}_icon.jpg", appid));
+        if fallback.is_file() {
+            icon_path = Some(fallback);
+        }
+    }
+
+    icon_path.and_then(|path| {
+        fs::read(&path).ok().map(|bytes| {
+            let file_name = path.file_name().unwrap().to_string_lossy();
+            let icon_b64 = general_purpose::STANDARD.encode(bytes);
+            let mime = mime_from_extension(&file_name); // existing utils function
+            format!("data:{};base64,{}", mime, icon_b64)
+        })
+    })
 }

@@ -81,14 +81,16 @@ pub fn get_all_steam_apps() -> Result<Vec<ProtonApp>, String> {
             let text = fs::read_to_string(&manifest_path).ok()?;
             let parsed = VdfText::parse(&text).ok()?;
             let appstate = parsed.value.get_obj()?; // root is already AppState
+            let appid = get_str_ci(appstate, "appid");
+            let icon = utils::load_steam_app_icon(&steam_path, &appid).unwrap_or_default();
 
             Some(ProtonApp {
-                appid: get_str_ci(appstate, "appid"),
+                appid,
                 appname: get_str_ci(appstate, "name"),
-                exe: get_str_ci(appstate, "exe"), // this is usually empty in appmanifest
+                exe: get_str_ci(appstate, "exe"),
                 startdir: get_str_ci(appstate, "installdir"),
                 lastplaytime: get_str_ci(appstate, "lastplayed"),
-                icon: "".to_string(),
+                icon,
             })
         })
         .collect();

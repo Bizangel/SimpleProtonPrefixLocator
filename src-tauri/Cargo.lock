@@ -3381,6 +3381,7 @@ dependencies = [
  "base64 0.22.1",
  "glob",
  "keyvalues-parser",
+ "regex",
  "serde",
  "serde_json",
  "tauri",
