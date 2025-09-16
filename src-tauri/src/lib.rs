@@ -35,6 +35,23 @@ fn open_appid_prefix(state: tauri::State<AppState>, appid: &str) -> Result<(), S
     Ok(())
 }
 
+#[tauri::command]
+fn open_appdata(state: tauri::State<AppState>, appid: &str) -> Result<(), String> {
+    let parsed = state.parsed_shortcuts.as_ref()?;
+    if !parsed.iter().any(|x| x.appid == appid) {
+        return Err("Invalid AppID".to_string());
+    }
+
+    let steam_path = utils::get_steam_path()?;
+    let appdata_location = steam_path.join(format!(
+        "steamapps/compatdata/{}/pfx/drive_c/users/steamuser/AppData",
+        appid
+    ));
+
+    let _ = utils::xdg_open_folder(&appdata_location); // doesn't matter if error
+    Ok(())
+}
+
 fn get_protonapps_from_vdf_shortcuts() -> Result<Vec<ProtonApp>, String> {
     let steam_path = utils::get_steam_path()?;
     let user_ids = utils::get_all_steam_user_ids(&steam_path)?;
@@ -124,7 +141,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             open_appid_prefix,
-            read_steam_vdf_shortcuts
+            read_steam_vdf_shortcuts,
+            open_appdata
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

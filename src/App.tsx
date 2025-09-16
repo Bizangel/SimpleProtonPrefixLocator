@@ -35,6 +35,10 @@ function App() {
     await invoke("open_appid_prefix", {appid: appid });
   }, [])
 
+  const openAppData = useCallback(async (appid: string) => {
+    await invoke("open_appdata", {appid: appid });
+  }, [])
+
   if (errorMsg)
     return (
       <div className="error-container">
@@ -46,20 +50,31 @@ function App() {
   return (
     <div className="column-container">
       {allApps.map(appEntry =>
-          <div className="shortcut-entry" key={appEntry.appid} onClick={() => { openAppIdPrefix(appEntry.appid) }}>
+          <div className="shortcut-entry" key={appEntry.appid}>
             <div className={`shortcut-img-container ${appEntry.icon ? "" : "noimg"}`}>
               {appEntry.icon && <img src={appEntry.icon} className="shortcut-img" />}
             </div>
-            <div className="shortcut-entry-title">
-                <b>App ID: { appEntry.appid} </b>
+            <div className="shortcut-entry-title selectable">
+            <b>{ appEntry.exe ? "Shortcut ID" : "AppID" } { appEntry.appid} </b>
                 <h3>{ appEntry.appname}</h3>
             </div>
 
-            { appEntry.exe &&
-              <div className="shortcut-entry-path">
-                  Shortcut<br/>{appEntry.exe}
-              </div>
-            }
+            <div className="button-group">
+              <button
+                className="open-folder-button"
+                onClick={() => openAppIdPrefix(appEntry.appid)}
+              >
+                Prefix
+              </button>
+
+              <button
+                className="open-folder-button"
+                onClick={() => openAppData(appEntry.appid)}
+              >
+                AppData
+              </button>
+            </div>
+
           </div>
       )}
     </div>

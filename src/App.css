@@ -40,8 +40,6 @@
   flex-direction: row;
 
   align-items: center;
-  transition: opacity 0.2s ease-in-out;
-  cursor: pointer;
 
   font-size: 2cqh;
 
@@ -52,14 +50,71 @@
 
 }
 
+.selectable {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 @media screen and (min-height: 500px) {
   .shortcut-entry {
     font-size: 18px
   }
 }
 
-.shortcut-entry:hover {
-  opacity: 0.5;
+.button-group {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  margin: 0 10px;
+}
+
+
+@media screen and (max-width: 600px) {
+  .shortcut-entry {
+    font-size: 14px;
+  }
+}
+
+@media screen and (max-width: 500px) {
+  .shortcut-entry {
+    font-size: 13px;
+  }
+
+  .shortcut-img-container {
+    display: none;
+  }
+}
+
+.open-folder-button {
+  background-color: #124559;
+  color: #a3cef1;
+
+  border: none;
+  border-radius: 6px;
+
+  padding: 6px 10px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+
+  width: 110px;
+}
+
+.open-folder-button:hover {
+  background-color: #176282;
+}
+
+.open-folder-button:active {
+  transform: scale(0.96);
+  background-color: #0e3747;
+}
+
+.open-folder-button:focus {
+  outline: 2px solid #a3cef1;
+  outline-offset: 2px;
 }
 
 .shortcut-img-container {
