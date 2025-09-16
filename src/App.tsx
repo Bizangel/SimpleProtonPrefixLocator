@@ -52,11 +52,14 @@ function App() {
             </div>
             <div className="shortcut-entry-title">
                 <b>App ID: { appEntry.appid} </b>
-                <p>{ appEntry.appname}</p>
+                <h3>{ appEntry.appname}</h3>
             </div>
-            <div className="shortcut-entry-path">
-                {appEntry.exe}
-            </div>
+
+            { appEntry.exe &&
+              <div className="shortcut-entry-path">
+                  Shortcut<br/>{appEntry.exe}
+              </div>
+            }
           </div>
       )}
     </div>
